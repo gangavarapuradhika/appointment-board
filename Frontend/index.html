@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Appointment Board</title>
+<style>
+body{font-family:Arial;padding:20px;background:#f5f5f5}
+.card{background:white;padding:12px;margin:10px 0;border-radius:8px;box-shadow:0 2px 4px #0001}
+.completed{border-left:5px solid green;background:#e8ffe8}
+.cancelled{border-left:5px solid red;background:#ffe8e8;opacity:0.8}
+.scheduled{border-left:5px solid blue}
+button{margin:4px;padding:6px 10px;cursor:pointer}
+.danger{background:#ff4444;color:white}
+input,textarea,select{padding:6px;margin:4px}
+</style>
+</head>
+<body>
+<h2>Appointment Board - My Own App</h2>
+
+<div>
+Filter Date: <input type="date" id="fdate">
+Status: <select id="fstatus"><option value="">All</option><option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select>
+<button onclick="load()">Apply</button>
+<button onclick="clearF()">Clear</button>
+</div>
+
+<div style="background:white;padding:15px;margin:15px 0;border-radius:8px">
+<h3 id="formTitle">Add Appointment</h3>
+<input type="hidden" id="editId">
+Title: <input id="title" placeholder="Title"><br>
+Desc: <textarea id="desc" placeholder="Description"></textarea><br>
+Date: <input type="date" id="date">
+Start: <input type="time" id="start">
+End: <input type="time" id="end"><br>
+<button onclick="save()">Save Appointment</button>
+<button onclick="resetForm()">Cancel Edit</button>
+<p id="msg"></p>
+</div>
+
+<div id="board"></div>
+
+<script>
+const API="http://127.0.0.1:8000";
+
+async function load(){
+  const d=document.getElementById("fdate").value;
+  const s=document.getElementById("fstatus").value;
+  let url=`${API}/appointments?`;
+  if(d) url+=`filter_date=${d}&`;
+  if(s) url+=`status=${s}&`;
+  let res=await fetch(url);
+  let data=await res.json();
+  let board=document.getElementById("board");
+  if(data.length==0){ board.innerHTML="<p>No appointments</p>"; return; }
+  board.innerHTML=data.map(a=>`
+    <div class="card ${a.status}">
+      <b>${a.title}</b> - ${a.date} ${a.start_time}-${a.end_time} [${a.status}]<br>
+      ${a.description}<br>
+      <button onclick="startEdit(${a.id},'${a.title.replace(/'/g,"\\'")}','${a.description.replace(/'/g,"\\'")}','${a.date}','${a.start_time}','${a.end_time}')">Edit</button>
+      <button onclick="act(${a.id},'complete')">Complete</button>
+      <button class="danger" onclick="act(${a.id},'cancel')">Cancel</button>
+    </div>`).join('');
+}
+
+function startEdit(id,t,d,dt,st,et){
+  document.getElementById("editId").value=id;
+  document.getElementById("title").value=t;
+  document.getElementById("desc").value=d;
+  document.getElementById("date").value=dt;
+  document.getElementById("start").value=st.substring(0,5);
+  document.getElementById("end").value=et.substring(0,5);
+  document.getElementById("formTitle").innerText="Edit Appointment ID: "+id;
+  window.scrollTo(0,0);
+  show("Editing... make changes and click Save","info");
+}
+
+function resetForm(){
+  document.getElementById("editId").value="";
+  document.getElementById("title").value="";
+  document.getElementById("desc").value="";
+  document.getElementById("date").value="";
+  document.getElementById("start").value="";
+  document.getElementById("end").value="";
+  document.getElementById("formTitle").innerText="Add Appointment";
+}
+
+async function save(){
+  const id=document.getElementById("editId").value;
+  const body={
+    title: document.getElementById("title").value,
+    description: document.getElementById("desc").value,
+    date: document.getElementById("date").value,
+    start_time: document.getElementById("start").value,
+    end_time: document.getElementById("end").value
+  };
+  if(!body.title || !body.date || !body.start_time || !body.end_time){ show("All fields required","error"); return; }
+  try{
+    let url=`${API}/appointments`;
+    let method="POST";
+    if(id){ url+=`/${id}`; method="PUT"; }
+    let res=await fetch(url,{method:method, headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    let j=await res.json();
+    if(!res.ok) throw new Error(j.detail || "Error");
+    show(id ? "Updated Successfully!" : "Added Successfully!","success");
+    resetForm();
+    load();
+  }catch(e){ show(e.message,"error"); }
+}
+
+async function act(id,type){
+  await fetch(`${API}/appointments/${id}/${type}`,{method:"PUT"});
+  load();
+}
+
+function clearF(){ document.getElementById("fdate").value=""; document.getElementById("fstatus").value=""; load(); }
+function show(m,t){ const el=document.getElementById("msg"); el.innerText=m; el.style.color=t=="error"?"red":"green"; }
+
+load();
+</script>
+</body>
+</html>
