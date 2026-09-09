@@ -31,7 +31,7 @@ appointments: List[Appt] = [
     Appt(id=3, title="Design Review", description="Reviewed UI - Done", date=date(2026,9,11), start_time=time(14,0), end_time=time(15,0), status="completed"),
     Appt(id=4, title="Doctor Visit", description="Not available", date=date(2026,9,9), start_time=time(9,0), end_time=time(10,0), status="cancelled"),
 ]
-next_id = 5
+next_id = 6
 
 def clash(d, s, e, ignore=None):
     for a in appointments:

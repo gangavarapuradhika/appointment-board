@@ -28,7 +28,7 @@ Docs: http://127.0.0.1:8000/docs
 
 I added 4 appointments as asked in task:
 - 2 scheduled
-- 1 completed  
+- 2 completed  
 - 1 cancelled
 
 ## Note / Assumption
