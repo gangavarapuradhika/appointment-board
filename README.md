@@ -1,7 +1,19 @@
 # Appointment Board -Tak 
+ 
+ ##Folder Strucutre
+  Task/
+├── Backend/
+│   └── appointment-board/
+│       └── main.py
+├── Frontend/
+│   └── index.html
+└── README.md
 
 ## How to Run
-Backend:
+Go to the Task folder
+Open the Task folder in any source code app
+ Open the Backend:
+Run the below in terminal
 cd Backend/appointment-board
 pip install fastapi uvicorn
 python -m uvicorn main:app --reload --port 8001
