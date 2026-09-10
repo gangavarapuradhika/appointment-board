@@ -3,43 +3,70 @@
 <head>
 <title>Appointment Board</title>
 <style>
-body{font-family:Arial;padding:20px;background:#f5f5f5}
+body{
+  font-family:Arial;
+  background:#eef2ff;
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:20px;
+}
+.main-container{
+  width:90%;
+  max-width:1100px;
+  background:white;
+  padding:25px;
+  border-radius:15px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.15);
+}
+h2{ text-align:center; color:#1e293b }
+#form{background:#f8fafc;padding:20px;border-radius:10px;text-align:center;margin-bottom:20px;}
+#form input, #form textarea, #form select{ padding:8px; margin:5px; border-radius:5px; border:1px solid #ccc }
+.board{display:grid;grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));gap:15px;justify-content:center; margin-top:20px}
 .card{background:white;padding:12px;margin:10px 0;border-radius:8px;box-shadow:0 2px 4px #0001}
 .completed{border-left:5px solid green;background:#e8ffe8}
 .cancelled{border-left:5px solid red;background:#ffe8e8;opacity:0.8}
 .scheduled{border-left:5px solid blue}
-button{margin:4px;padding:6px 10px;cursor:pointer}
-.danger{background:#ff4444;color:white}
-input,textarea,select{padding:6px;margin:4px}
+button{margin:4px;padding:6px 12px;cursor:pointer;border:none; border-radius:5px; background:#4f46e5; color:white}
+.danger{background:#ff4444!important;color:white}
+.filter-bar{text-align:center; background:white; padding:15px; border-radius:8px; margin-bottom:15px}
 </style>
 </head>
 <body>
-<h2>Appointment Board - My Own App</h2>
-
-<div>
-Filter Date: <input type="date" id="fdate">
-Status: <select id="fstatus"><option value="">All</option><option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select>
-<button onclick="load()">Apply</button>
-<button onclick="clearF()">Clear</button>
+<div class="main-container">
+  <h2>Appointment Board - My Own App</h2>
+  <div id="form">
+    <h3 id="formTitle">Add Appointment</h3>
+    <input type="hidden" id="editId">
+    Title: <input id="title" placeholder="Title"><br>
+    Desc: <textarea id="desc" placeholder="Description" style="vertical-align:middle"></textarea><br>
+    Date: <input type="date" id="date">
+    Start: <input type="time" id="start">
+    End: <input type="time" id="end"><br>
+    <label for="status">Status:</label>
+    <select id="status">
+      <option value="scheduled">Scheduled</option>
+      <option value="completed">Completed</option>
+      <option value="cancelled">Cancelled</option>
+    </select><br><br>
+    <button onclick="save()">Save Appointment</button>
+    <button onclick="resetForm()" style="background:#64748b">Cancel Edit</button>
+    <p id="msg"></p>
+  </div>
+  <div class="filter-bar">
+    Filter Date: <input type="date" id="fdate">
+    Status: <select id="fstatus"><option value="">All</option><option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select>
+    <button onclick="load()">Apply</button>
+    <button onclick="clearF()" style="background:#64748b">Clear</button>
+  </div>
+  <div id="board" class="board"></div>
 </div>
-
-<div style="background:white;padding:15px;margin:15px 0;border-radius:8px">
-<h3 id="formTitle">Add Appointment</h3>
-<input type="hidden" id="editId">
-Title: <input id="title" placeholder="Title"><br>
-Desc: <textarea id="desc" placeholder="Description"></textarea><br>
-Date: <input type="date" id="date">
-Start: <input type="time" id="start">
-End: <input type="time" id="end"><br>
-<button onclick="save()">Save Appointment</button>
-<button onclick="resetForm()">Cancel Edit</button>
-<p id="msg"></p>
-</div>
-
-<div id="board"></div>
 
 <script>
-const API="http://127.0.0.1:8000";
+const API="http://127.0.0.1:8001";
+let allData = [];
 
 async function load(){
   const d=document.getElementById("fdate").value;
@@ -49,28 +76,32 @@ async function load(){
   if(s) url+=`status=${s}&`;
   let res=await fetch(url);
   let data=await res.json();
+  allData = data;
   let board=document.getElementById("board");
-  if(data.length==0){ board.innerHTML="<p>No appointments</p>"; return; }
+  if(data.length==0){ board.innerHTML="<p style='text-align:center'>No appointments</p>"; return; }
   board.innerHTML=data.map(a=>`
     <div class="card ${a.status}">
       <b>${a.title}</b> - ${a.date} ${a.start_time}-${a.end_time} [${a.status}]<br>
       ${a.description}<br>
-      <button onclick="startEdit(${a.id},'${a.title.replace(/'/g,"\\'")}','${a.description.replace(/'/g,"\\'")}','${a.date}','${a.start_time}','${a.end_time}')">Edit</button>
+      <button onclick="startEdit(${a.id})">Edit</button>
       <button onclick="act(${a.id},'complete')">Complete</button>
       <button class="danger" onclick="act(${a.id},'cancel')">Cancel</button>
     </div>`).join('');
 }
 
-function startEdit(id,t,d,dt,st,et){
-  document.getElementById("editId").value=id;
-  document.getElementById("title").value=t;
-  document.getElementById("desc").value=d;
-  document.getElementById("date").value=dt;
-  document.getElementById("start").value=st.substring(0,5);
-  document.getElementById("end").value=et.substring(0,5);
-  document.getElementById("formTitle").innerText="Edit Appointment ID: "+id;
-  window.scrollTo(0,0);
-  show("Editing... make changes and click Save","info");
+function startEdit(id){
+  const a = allData.find(x => x.id === id);
+  if(!a) return;
+  document.getElementById("editId").value = a.id;
+  document.getElementById("title").value = a.title;
+  document.getElementById("desc").value = a.description;
+  document.getElementById("date").value = a.date;
+  document.getElementById("start").value = a.start_time.substring(0,5);
+  document.getElementById("end").value = a.end_time.substring(0,5);
+  document.getElementById("status").value = a.status;
+  document.getElementById("formTitle").innerText = "Edit Appointment ID: " + id;
+  window.scrollTo({top:0, behavior:'smooth'});
+  show("Editing ID "+id+" - change and Save","info");
 }
 
 function resetForm(){
@@ -80,29 +111,33 @@ function resetForm(){
   document.getElementById("date").value="";
   document.getElementById("start").value="";
   document.getElementById("end").value="";
+  document.getElementById("status").value="scheduled";
   document.getElementById("formTitle").innerText="Add Appointment";
 }
 
 async function save(){
-  const id=document.getElementById("editId").value;
+  const id = document.getElementById("editId").value;
   const body={
     title: document.getElementById("title").value,
     description: document.getElementById("desc").value,
     date: document.getElementById("date").value,
     start_time: document.getElementById("start").value,
-    end_time: document.getElementById("end").value
+    end_time: document.getElementById("end").value,
+    status: document.getElementById("status").value
   };
-  if(!body.title || !body.date || !body.start_time || !body.end_time){ show("All fields required","error"); return; }
+  if(!body.title ||!body.date ||!body.start_time ||!body.end_time){ show("All fields required","error"); return; }
   try{
     let url=`${API}/appointments`;
     let method="POST";
     if(id){ url+=`/${id}`; method="PUT"; }
-    let res=await fetch(url,{method:method, headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
-    let j=await res.json();
-    if(!res.ok) throw new Error(j.detail || "Error");
-    show(id ? "Updated Successfully!" : "Added Successfully!","success");
+    let res=await fetch(url,{ method:method, headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) });
+    let result = await res.json();
+    if(!res.ok) throw new Error(result.detail || "Error");
+    show(id? "Updated Successfully" : "Added Successfully!","success");
     resetForm();
-    load();
+    document.getElementById("fdate").value = "";
+    document.getElementById("fstatus").value = "";
+    await load();
   }catch(e){ show(e.message,"error"); }
 }
 
@@ -110,10 +145,8 @@ async function act(id,type){
   await fetch(`${API}/appointments/${id}/${type}`,{method:"PUT"});
   load();
 }
-
 function clearF(){ document.getElementById("fdate").value=""; document.getElementById("fstatus").value=""; load(); }
 function show(m,t){ const el=document.getElementById("msg"); el.innerText=m; el.style.color=t=="error"?"red":"green"; }
-
 load();
 </script>
 </body>
